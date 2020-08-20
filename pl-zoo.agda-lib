@@ -1,2 +1,3 @@
 name    : pl-zoo
+depend  : standard-library 
 include : src

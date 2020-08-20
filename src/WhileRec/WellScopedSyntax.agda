@@ -1,12 +1,17 @@
 module WhileRec.WellScopedSyntax where
 
-infixr 8 `V_ there_
+import Relation.Binary.PropositionalEquality as Eq
+open Eq using (_≡_; refl; _≢_)
+open import Relation.Nullary using (Dec; yes; no)
+
+
+--infixr 8 there_
 infixr 7 `S_ `λ_ `fix_ `!_
 infixl 6 _`$_
 infixr 4 _`←_,,_ `while_`do_,,_ `let_,,_
 infix  3 _⊢_ _∋_
 
-open import WhileRec.Ty
+open import WhileRec.Ty hiding (_≟_)
 
 data Ctx : Set where
   ε : Ctx
@@ -14,12 +19,20 @@ data Ctx : Set where
 
 data _∋_ : Ctx -> Ty -> Set where
   here : ∀ {Γ τ} -> Γ , τ ∋ τ 
-  there_ : ∀ {Γ τ σ} -> Γ ∋ τ -> Γ , σ ∋ τ
+  there : ∀ {Γ τ σ} -> Γ ∋ τ -> Γ , σ ∋ τ
 
--- _≤_ : ∀ {Γ τ σ} -> Γ ∋ τ -> Γ ∋ σ -> Set
--- here ≤ q = ⊤
--- (there p) ≤ here = ⊥
--- (there p) ≤ (there q) = p ≤ q
+{--
+postulate 
+  aux : ∀ {Γ τ σ}{d₀ d₁ : Γ ∋ τ} -> d₀ ≢ d₁ -> (there {σ = σ} d₀) ≢ (there d₁)
+
+_≟_ : ∀ {Γ τ} -> (db₀ : Γ ∋ τ) -> (db₁ : Γ ∋ τ) -> Dec (db₀ ≡ db₁)
+here ≟ here = yes refl
+here ≟ (there d₁) = no (λ ())
+(there d₀) ≟ here = no (λ ())
+(there d₀) ≟ (there d₁) with d₀ ≟ d₁
+(there d₀) ≟ (there d₁) | yes p rewrite p = yes refl
+(there d₀) ≟ (there d₁) | no ¬p = no (aux ¬p)
+--}
 
 data _⊢_ : Ctx -> Ty -> Set where
 
@@ -36,14 +49,9 @@ data _⊢_ : Ctx -> Ty -> Set where
     ---------------
     -> Γ ⊢ `N
 
-  `V_ : ∀ {Γ τ}
-    -> Γ ∋ τ
-    --------
-    -> Γ ⊢ `ref τ
-
   `!_ : ∀ {Γ τ}
-    -> Γ ⊢ `ref τ
-    -------------
+    -> Γ ∋ τ
+    ---------
     -> Γ ⊢ τ
 
   `λ_ : ∀ {Γ τ σ}
@@ -69,7 +77,7 @@ data _⊢_ : Ctx -> Ty -> Set where
     -> Γ ⊢ σ
 
   _`←_,,_ : ∀ {Γ τ σ}
-    -> Γ ⊢ `ref τ
+    -> Γ ∋ τ
     -> Γ ⊢ τ
     -> Γ ⊢ σ
     --------
@@ -79,29 +87,29 @@ data _⊢_ : Ctx -> Ty -> Set where
     -> Γ ⊢ `N
     -> Γ ⊢ τ
     -> Γ , `N ⊢ τ
-  -------------
+    -------------
     -> Γ ⊢ τ
 
   `while_`do_,,_ : ∀ {Γ τ}
     -> Γ ⊢ `N
     -> Γ ⊢ `1
     -> Γ ⊢ τ
-      --------
+    --------
     -> Γ ⊢ τ
 
 
 _`-1 : ∀ {Γ} -> Γ ⊢ `N -> Γ ⊢ `N
-n `-1 = `λ `case `! `V here [Z `! `V here |Sn `! `V here ] `$ n
+n `-1 = `λ `case `! here [Z `! here |Sn `! here ] `$ n
   
 `plus-rec : ∀ {Γ} -> Γ ⊢ `N `⇒ `N `⇒ `N
-`plus-rec = `fix `λ `λ `case `! `V here
-                             [Z `! (`V (there here))
-                             |Sn `S (`! (`V (there (there (there here)))) `$ `! `V (there (there here)) `$ `! `V here) ]
+`plus-rec = `fix `λ `λ `case `! here
+                             [Z `! (there here)
+                             |Sn `S (`! (there (there (there here))) `$ `! there (there here) `$ `! here) ]
 
 `plus-imp : ∀ {Γ} -> Γ ⊢ `N `⇒ `N `⇒ `N
-`plus-imp = `λ `λ (`while `! `V here `do
-                          `V here       `← (`! `V here) `-1 ,,
-                          `V there here `← `S `! `V there here ,,
+`plus-imp = `λ `λ (`while `! here `do
+                          here       `← (`! here) `-1 ,,
+                          there here `← `S `! there here ,,
                           `done ,,
-                  `! `V there here)
+                  `! there here)
 
