@@ -2,9 +2,9 @@ module PCF+Stat.PCF+Stat where
 
 infix 10 _,_
 infix  9 _`→_
-infix  8 `st_
+infix  8 `st_ `S_ 
 infix  7 _∋_ _⊢_
-infix  5 _`$_
+infix  5 _`$_ `λ_
 
 data Ty : Set where
   `N `1 : Ty
@@ -29,12 +29,12 @@ data _⊢_ : Ctx -> Ty -> Set where
     ----------
     -> Γ ⊢ `N
     
-  `S : ∀ {Γ}
+  `S_ : ∀ {Γ}
     -> Γ ⊢ `N
     ---------
     -> Γ ⊢ `N
     
-  `λ : ∀ {Γ τ σ}
+  `λ_ : ∀ {Γ τ σ}
     -> Γ , σ ⊢ τ
     -------------
     -> Γ ⊢ σ `→ τ
@@ -57,36 +57,55 @@ data _⊢_ : Ctx -> Ty -> Set where
     ---------
     -> Γ ⊢ τ
     
-  `let : ∀ {Γ τ}
-    -> Γ ⊢ τ
+  `let : ∀ {Γ τ} -- declare a new var
+    -> Γ ⊢ τ     -- the value asigned to the var
     ------------
-    -> Γ ⊢ `st τ
+    -> Γ ⊢ `st τ -- type of whole expression indicates it is a statement
     
-  _`←_ : ∀ {Γ τ}
-    -> Γ ∋ τ
-    -> Γ ⊢ τ
+  _`←_ : ∀ {Γ τ} -- modify an existing var
+    -> Γ ∋ τ     -- the de Bruijn index of the var
+    -> Γ ⊢ τ     -- the new value
     ---------
-    -> Γ ⊢ `1
+    -> Γ ⊢ `1    -- whole expression does not have an interesting value
     
+  _`,_ : ∀ {Γ τ σ} -- sequence a declaration and some other exp
+    -> Γ ⊢ `st τ   -- declare a new var
+    -> Γ , τ ⊢ σ   -- following exp should be valid with this new var in the Ctx
+    -------------
+    -> Γ ⊢ σ      -- whole expression has type σ and is valid in Γ
+
+  _`,,_ : ∀ {Γ τ} -- sequence an assignment and some other exp
+    -> Γ ⊢ `1     -- assign a new value to an existing var
+    -> Γ ⊢ τ      -- then continue the expression
+    ---------
+    -> Γ ⊢ τ      -- whole expression has the type of the second member
+
   `!_ : ∀ {Γ τ}
     -> Γ ∋ τ
     --------
     -> Γ ⊢ τ
-    
-  _`,_ : ∀ {Γ τ σ}
-    -> Γ ⊢ `st τ  -- declare a new var
-    -> Γ , τ ⊢ σ  -- following exp should be valid with this new var in the Ctx
-    -------------
-    -> Γ ⊢ σ
-    
-  _`,,_ : ∀ {Γ τ}
-    -> Γ ⊢ `1  -- assign a new value to an existing var
-    -> Γ ⊢ τ   -- then continue the expression
-    ---------
-    -> Γ ⊢ τ
-    
+
   `while_`do_ : ∀ {Γ}
     -> Γ ⊢ `N  -- loop condition
-    -> Γ ⊢ `1  -- loop body just change value of existing var
+    -> Γ ⊢ `1  -- loop body just changes value of existing var
     ----------
     -> Γ ⊢ `1  -- while expression does not have interesting value
+
+lift : ∀ {Γ Δ τ σ} -> (∀ {φ} -> Γ ∋ φ -> Δ ∋ φ) -> Γ , σ ∋ τ -> Δ , σ ∋ τ
+lift f here      = here
+lift f (there p) = there (f p)
+
+rename : ∀ {Γ Δ τ} -> (∀ {σ} -> Γ ∋ σ -> Δ ∋ σ) -> Γ ⊢ τ -> Δ ⊢ τ
+rename f `done = `done
+rename f `Z = `Z
+rename f (`S t) = `S rename f t
+rename f (`λ t) = `λ rename (lift f) t
+rename f `case t [Z t₁ |S t₂ ] = `case rename f t [Z rename f t₁ |S rename f t₂ ]
+rename f (`μ t) = rename f t
+rename f (t `$ t₁) = rename f t `$ rename f t₁
+rename f (`let t) = `let (rename f t)
+rename f (x `← t) = f x `← rename f t
+rename f (t `, t₁) = {!rename f t!} `, {!!}
+rename f (t `,, t₁) = rename f t `,, rename f t₁
+rename f (`! x) = `! f x
+rename f (`while t `do t₁) = `while rename f t `do rename f t₁
