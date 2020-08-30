@@ -57,10 +57,11 @@ data _⊢_ : Ctx -> Ty -> Set where
     ---------
     -> Γ ⊢ τ
     
-  `let : ∀ {Γ τ} -- declare a new var
-    -> Γ ⊢ τ     -- the value asigned to the var
+  `let_`in_ : ∀ {Γ τ σ} -- declare a new var
+    -> Γ ⊢ τ            -- the value asigned to the new var
+    -> Γ , τ ⊢ σ        -- the term in wihch this new var is in scope
     ------------
-    -> Γ ⊢ `st τ -- type of whole expression indicates it is a statement
+    -> Γ ⊢ σ 
     
   _`←_ : ∀ {Γ τ} -- modify an existing var
     -> Γ ∋ τ     -- the de Bruijn index of the var
@@ -68,13 +69,7 @@ data _⊢_ : Ctx -> Ty -> Set where
     ---------
     -> Γ ⊢ `1    -- whole expression does not have an interesting value
     
-  _`,_ : ∀ {Γ τ σ} -- sequence a declaration and some other exp
-    -> Γ ⊢ `st τ   -- declare a new var
-    -> Γ , τ ⊢ σ   -- following exp should be valid with this new var in the Ctx
-    -------------
-    -> Γ ⊢ σ      -- whole expression has type σ and is valid in Γ
-
-  _`,,_ : ∀ {Γ τ} -- sequence an assignment and some other exp
+  _`,_ : ∀ {Γ τ} -- sequence an assignment and some other exp
     -> Γ ⊢ `1     -- assign a new value to an existing var
     -> Γ ⊢ τ      -- then continue the expression
     ---------
@@ -96,16 +91,15 @@ lift f here      = here
 lift f (there p) = there (f p)
 
 rename : ∀ {Γ Δ τ} -> (∀ {σ} -> Γ ∋ σ -> Δ ∋ σ) -> Γ ⊢ τ -> Δ ⊢ τ
-rename f `done = `done
-rename f `Z = `Z
-rename f (`S t) = `S rename f t
-rename f (`λ t) = `λ rename (lift f) t
+rename f `done                 = `done
+rename f `Z                    = `Z
+rename f (`S t)                = `S rename f t
+rename f (`λ t)                = `λ rename (lift f) t
 rename f `case t [Z t₁ |S t₂ ] = `case rename f t [Z rename f t₁ |S rename f t₂ ]
-rename f (`μ t) = rename f t
-rename f (t `$ t₁) = rename f t `$ rename f t₁
-rename f (`let t) = `let (rename f t)
-rename f (x `← t) = f x `← rename f t
-rename f (t `, t₁) = {!rename f t!} `, {!!}
-rename f (t `,, t₁) = rename f t `,, rename f t₁
-rename f (`! x) = `! f x
-rename f (`while t `do t₁) = `while rename f t `do rename f t₁
+rename f (`μ t)                = rename f t
+rename f (t `$ t₁)             = rename f t `$ rename f t₁
+rename f (`let x `in t)        = `let rename f x `in rename (lift f) t
+rename f (x `← t)              = f x `← rename f t
+rename f (t `, t₁)             = rename f t `, rename f t₁
+rename f (`! x)                = `! f x
+rename f (`while t `do t₁)     = `while rename f t `do rename f t₁
