@@ -60,8 +60,8 @@ data _⊢_ : Ctx -> Ty -> Set where
     -> Γ ⊢ τ
     
   `let_`in_ : ∀ {Γ τ σ} -- declare a new var
-    -> Γ ⊢ σ         -- the value asigned to the new var
-    -> Γ , σ ⊢ τ     -- the term in which this new var is in scope
+    -> Γ ⊢ σ            -- the value asigned to the new var
+    -> Γ , σ ⊢ τ        -- the term in which this new var is in scope
     ------------
     -> Γ ⊢ τ
     
