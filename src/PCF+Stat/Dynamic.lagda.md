@@ -45,6 +45,10 @@ toVal Σ st-Z     = v-Z
 toVal Σ (st-S s) = v-S (toVal Σ s)
 toVal Σ (st-λ t) = v-⟨ Σ , t ⟩
 
+contextualize : Val `N -> (Γ : Ctx) -> Γ ⊢ `N
+contextualize v-Z Γ     = `Z
+contextualize (v-S v) Γ = `S contextualize v Γ
+
 _!_ : ∀ {Γ τ} -> Γ ∋ τ -> Store Γ -> Val τ
 here ! (_ , v)    = v
 there p ! (Σ , _) = p ! Σ
@@ -53,23 +57,8 @@ update : ∀ {Γ τ} -> Γ ∋ τ -> Store Γ -> Val τ -> Store Γ
 update here (S , x) v      = S , v
 update (there p) (S , x) v = (update p S v) , x
 
-{--
-decontextualize : ∀ {Γ}{n : Γ ⊢ `N} -> Storable n -> Val `N
-decontextualize st-Z     = v-Z
-decontextualize (st-S n) = v-S (decontextualize n)
-
-contextualize : Val `N -> (Γ : Ctx) -> Γ ⊢ `N
-contextualize v-Z Γ     = `Z
-contextualize (v-S v) Γ = `S contextualize v Γ
-
-add : ∀ {Γ τ}{t : Γ ⊢ τ} -> Store Γ -> Storable t -> Store (Γ , τ)
-add {Γ} {`N} Σ s             = Σ , (decontextualize s)
-add {Γ} {τ `→ τ₁} Σ (st-λ t) = Σ , v-⟨ Σ , t ⟩
--}
-
 data ⟨_×_⟩ : ∀ {Γ τ} -> Store Γ -> Γ ⊢ τ -> Set where
  ⟪_×_⟫ : ∀ {Γ τ} -> (Σ : Store Γ) -> (T : Γ ⊢ τ) -> ⟨ Σ × T ⟩ 
-
 
 data _⟶_ : ∀ {Γ Δ τ}{Σ : Store Γ}{Σ' : Store Δ}{T : Γ ⊢ τ}{T' : Δ ⊢ τ} -> ⟨ Σ × T ⟩ -> ⟨ Σ' × T' ⟩ -> Set where
 
@@ -89,17 +78,50 @@ data _⟶_ : ∀ {Γ Δ τ}{Σ : Store Γ}{Σ' : Store Δ}{T : Γ ⊢ τ}{T' : �
     -------------------------------------------------
     -> ⟪ Σ × `let v `in T ⟫ ⟶ ⟪ Σ , toVal Σ s × T ⟫
 
-  `$-anon :
-    ∀ {Γ τ σ}{Σ : Store Γ}{b : Γ , τ ⊢ σ}{t : Γ ⊢ τ}
-    -> (s : Storable t)
-    -----------------------------------------------
-    -> ⟪ Σ × (`λ b) `$ t ⟫ ⟶ ⟪ Σ , toVal Σ s × b ⟫
+  `!-nat :
+    ∀ {Γ}{Σ : Store Γ}{db : Γ ∋ `N}
+    -----------------------------------------------------
+    -> ⟪ Σ × `! db ⟫ ⟶ ⟪ Σ × contextualize (db ! Σ) Γ ⟫
 
   `$-closure :
     ∀ {Γ τ σ}{Σ : Store Γ}{db : Γ ∋ τ `→ σ}{t : Γ ⊢ τ}
     -> (s : Storable t)
     -----------------------------------------------------------------------------------
     -> ⟪ Σ × (`! db) `$ t ⟫ ⟶ ⟪ (getStore (db ! Σ)) , (toVal Σ s) × getBody (db ! Σ) ⟫
+    
+  `$-anon :
+    ∀ {Γ τ σ}{Σ : Store Γ}{b : Γ , τ ⊢ σ}{t : Γ ⊢ τ}
+    -> (s : Storable t)
+    -----------------------------------------------
+    -> ⟪ Σ × (`λ b) `$ t ⟫ ⟶ ⟪ Σ , toVal Σ s × b ⟫
 
+  `$-step :
+    ∀ {Γ τ σ}{Σ Σ' : Store Γ}{F : Γ ⊢ τ `→ σ}{A A' : Γ ⊢ τ}
+    -> ⟪ Σ × A ⟫ ⟶ ⟪ Σ' × A' ⟫
+    -------------------------------------
+    -> ⟪ Σ × F `$ A ⟫ ⟶ ⟪ Σ' × F `$ A' ⟫
 
+  `<-step :
+    ∀ {Γ τ}{Σ Σ' : Store Γ}{db : Γ ∋ τ}{v v' : Γ ⊢ τ}
+    -> ⟪ Σ × v ⟫ ⟶ ⟪ Σ' × v' ⟫
+    ----------------------------------------
+    -> ⟪ Σ × db `← v ⟫ ⟶ ⟪ Σ' × db `← v' ⟫
+
+  `<-done :
+    ∀ {Γ τ}{Σ Σ' : Store Γ}{db : Γ ∋ τ}{v : Γ ⊢ τ}
+    -> (s : Storable v)
+    ----------------------------------------------------------
+    -> ⟪ Σ × db `← v ⟫ ⟶ ⟪ update db Σ (toVal Σ s) × `done ⟫
+
+  `,-step :
+    ∀ {Γ τ}{Σ Σ' : Store Γ}{s s' : Γ ⊢ `1}{T : Γ ⊢ τ}
+    -> ⟪ Σ × s ⟫ ⟶ ⟪ Σ' × s' ⟫
+    --------------------------------------
+    -> ⟪ Σ × s `, T ⟫ ⟶ ⟪ Σ' × s' `, T ⟫
+
+  `,-done :
+    ∀ {Γ τ}{Σ : Store Γ}{T : Γ ⊢ τ}
+    -----------------------------------
+    -> ⟪ Σ × `done `, T ⟫ ⟶ ⟪ Σ × T ⟫
+    
 ```
