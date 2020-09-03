@@ -1,6 +1,6 @@
 ```agda
 
-module PCF+Stat.Static where
+module PCF+While.Static where
 
 
 infix 10 _`→_

@@ -1,8 +1,8 @@
 ```agda
 
-module PCF+Stat.Dynamic where
+module PCF+While.Dynamic where
 
-open import PCF+Stat.Static
+open import PCF+While.Static
 
 mutual
 
