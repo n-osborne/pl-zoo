@@ -22,32 +22,44 @@ mutual
       ---------------
       -> Val (τ `→ σ)
 
+    v-μ :
+      ∀ {Γ τ}
+      -> Store Γ
+      -> Γ , τ ⊢ τ
+      -> Val τ
+
   data Store : Ctx -> Set where
     ∅   : Store ∅
     _,_ : ∀ {Γ τ} -> Store Γ -> Val τ -> Store (Γ , τ)
 
 getCtx : ∀ {τ σ} ->  Val (τ `→ σ) -> Ctx
 getCtx (v-⟨_,_⟩ {Γ} _ _) = Γ
+getCtx (v-μ {Γ} _ _)     = Γ
 
 getStore : ∀ {τ σ} -> (v : Val (τ `→ σ)) -> Store (getCtx v)
 getStore v-⟨ Σ , _ ⟩ = Σ
+getStore (v-μ Σ _)   = Σ
 
 getBody : ∀ {τ σ} -> (v : Val (τ `→ σ)) -> (getCtx v) , τ ⊢ σ
 getBody v-⟨ _ , b ⟩ = b
+getBody (v-μ _ b)   = `μ (`! here)
 
 data Storable : ∀ {Γ τ} -> Γ ⊢ τ -> Set where
   st-Z : ∀ {Γ} -> Storable (`Z {Γ})
   st-S : ∀ {Γ}{n : Γ ⊢ `N} -> Storable n -> Storable (`S n)
   st-λ : ∀ {Γ τ σ} -> (t : Γ , τ ⊢ σ) -> Storable (`λ t)
+  st-μ : ∀ {Γ τ} -> (t : Γ , τ ⊢ τ) -> Storable (`μ t)
 
 toVal : ∀ {Γ τ}{T : Γ ⊢ τ} -> Store Γ -> Storable T -> Val τ
 toVal Σ st-Z     = v-Z
 toVal Σ (st-S s) = v-S (toVal Σ s)
 toVal Σ (st-λ t) = v-⟨ Σ , t ⟩
+toVal Σ (st-μ t) = v-μ Σ t
 
 contextualize : Val `N -> (Γ : Ctx) -> Γ ⊢ `N
-contextualize v-Z Γ     = `Z
-contextualize (v-S v) Γ = `S contextualize v Γ
+contextualize v-Z Γ       = `Z
+contextualize (v-S v) Γ   = `S contextualize v Γ
+contextualize (v-μ Σ b) Γ = `Z
 
 _!_ : ∀ {Γ τ} -> Γ ∋ τ -> Store Γ -> Val τ
 here ! (_ , v)    = v
@@ -158,19 +170,18 @@ mutual
     `while-S :
       ∀ {Γ}{Σ Σ' : Store Γ}{c c' : Γ ⊢ `N}{T : Γ ⊢ `1}
       -> ⟪ Σ × c ⟫ ==> ⟪ Σ' × `S c' ⟫
-      --------------------------------------------
+      ------------------------------------------------------------
       -> ⟪ Σ × `while c `do T ⟫ ⟶ ⟪ Σ' × T `, (`while c `do T) ⟫  
 
-{--
-  `μ-reduc :
-    ∀ {Γ τ}{Σ : Store Γ}{T : Γ , τ ⊢ τ}
-    -> (s : Storable T)
-    -> ⟪ Σ × `μ T ⟫ ⟶ ⟪ Σ , toVal Σ s × T ⟫
 
--}
+    `μ-reduc :
+      ∀ {Γ τ}{Σ : Store Γ}{T : Γ , τ ⊢ τ}
+      -> (s : Storable (`μ T))
+      -----------------------------------------
+      -> ⟪ Σ × `μ T ⟫ ⟶ ⟪ Σ , toVal Σ s × T ⟫
 
-
-  data _==>_ : ∀ {Γ Δ τ}{Σ : Store Γ}{Σ' : Store Δ}{T : Γ ⊢ τ}{T' : Δ ⊢ τ} -> ⟨ Σ × T ⟩ -> ⟨ Σ' × T' ⟩ -> Set where
+  data _==>_ : ∀ {Γ Δ τ}{Σ : Store Γ}{Σ' : Store Δ}{T : Γ ⊢ τ}{T' : Δ ⊢ τ}
+               -> ⟨ Σ × T ⟩ -> ⟨ Σ' × T' ⟩ -> Set where
 
     _■ : ∀ {Γ τ}{Σ : Store Γ}
       -> (T : Γ ⊢ τ)
