@@ -4,115 +4,108 @@ infix 10 _,_
 infix  9 _∋_
 infix  8 `!_
 infix  7 _`→_ `λ_
-infix  6 `pure_ `impure_
-infix  5 _⊢_ _`$_ _`$$_
+infix  5 [_]_⊢_ _`$_ _`$$_
 
-data PreTy : Set where
-  `1 `N : PreTy
-  _`→_ : PreTy -> PreTy -> PreTy
+data Ty : Set where
+  `1 `N : Ty
+  _`→_ : Ty -> Ty -> Ty
 
-data Ty : PreTy -> Set where
-  `pure_ `impure_ : (τ : PreTy) -> Ty τ
+data Status : Set where
+  `pure `impure : Status
 
 data Ctx : Set where
   ∅ : Ctx
-  _,_ : Ctx -> PreTy -> Ctx
+  _,_ : Ctx -> Ty -> Ctx
 
 variable
   Γ Δ : Ctx
-  τ σ : PreTy
+  τ σ : Ty
+  ζ ξ : Status
 
-_⊔_ : Ty τ -> Ty τ -> Ty τ
-(`pure τ)   ⊔ (`pure _)   = `pure τ
-(`pure τ)   ⊔ (`impure _) = `impure τ
-(`impure τ) ⊔ (`pure _)   = `impure τ
-(`impure τ) ⊔ (`impure _) = `impure τ
-
-data _∋_ : Ctx -> PreTy -> Set where
+data _∋_ : Ctx -> Ty -> Set where
   here : Γ , τ ∋ τ
   there : Γ ∋ τ -> Γ , σ ∋ τ
 
-data _⊢_ : Ctx -> Ty τ -> Set where
+data [_]_⊢_ : Status -> Ctx -> Ty -> Set where
 
   `Z :
     ------------
-    Γ ⊢ `pure `N
+    [ `pure ] Γ ⊢ `N
     
   `S :
-    Γ ⊢ `pure `N
+    [ `pure ] Γ ⊢ `N
     ---------------
-    -> Γ ⊢ `pure `N
+    -> [ `pure ] Γ ⊢ `N
     
   `case_[Z_|S_] :
-    ∀ {φ : Ty σ}
-    -> Γ ⊢ `pure `N
-    -> Γ ⊢ φ
-    -> Γ , `N ⊢ φ
+    [ `pure ] Γ ⊢ `N
+    -> [ ζ ] Γ ⊢ τ
+    -> [ ζ ] Γ , `N ⊢ τ
     --------------
-    -> Γ ⊢ φ
+    -> [ ζ ] Γ ⊢ τ
     
   `if_`then_`else_ :
-    ∀ {φ : Ty σ}
-    -> Γ ⊢ `pure `N
-    -> Γ ⊢ φ
-    -> Γ ⊢ φ
+    [ `pure ] Γ ⊢ `N
+    -> [ ζ ] Γ ⊢ τ
+    -> [ ζ ] Γ ⊢ τ
     ---------
-    -> Γ ⊢ φ
+    -> [ ζ ] Γ ⊢ τ
+
+-- seems to be needed to assign the result of a function call to a var
+-- but raises problems
+-- it is now possible to write : `let (`ret (impure expr)) `in T
 
   `ret :
-    Γ ⊢ `impure τ
+    [ ζ ] Γ ⊢ τ
     ----------------
-    -> Γ ⊢ `pure τ
+    -> [ `pure ] Γ ⊢ τ
 
   `λ_ :
-    ∀ {φ : Ty σ}
-    -> Γ , τ ⊢ φ
+    [ ζ ] Γ , τ ⊢ σ
     -------------------
-    -> Γ ⊢ `pure τ `→ σ
+    -> [ `pure ] Γ ⊢ τ `→ σ
     
   _`$_ :
-    Γ ⊢ `pure (τ `→ σ)
-    -> Γ ⊢ `pure τ
+    [ `pure ] Γ ⊢ τ `→ σ
+    -> [ `pure ] Γ ⊢ τ
     ------------------
-    -> Γ ⊢ `impure σ -- ?
+    -> [ `impure ] Γ ⊢ σ -- ?
 
   _`$$_ :
     Γ ∋ (τ `→ σ)
-    -> Γ ⊢ `pure τ
+    -> [ `pure ] Γ ⊢ τ
     --------------
-    -> Γ ⊢ `pure σ
+    -> [ `pure ] Γ ⊢ σ
     
   `let_`in_ :
-    ∀ {φ : Ty σ}
-    -> Δ ⊢ `pure τ
-    -> Γ , τ ⊢ φ
+    [ `pure ] Δ ⊢ τ
+    -> [ ζ ] Γ , τ ⊢ σ
     ----------------
-    -> Γ ⊢ `impure σ
+    -> [ `impure ] Γ ⊢ σ
     
   _`←_ :
     Γ ∋ τ
-    -> Δ ⊢ `pure τ
+    -> [ `pure ] Δ ⊢ τ
     -----------------
-    -> Γ ⊢ `impure `1
+    -> [ `impure ] Γ ⊢ `1
 
   `!_ :
     Γ ∋ τ
     -------------
-    -> Γ ⊢ `pure τ
+    -> [ `pure ] Γ ⊢  τ
 
   _`,_ :
-    ∀ {φ : Ty σ}
-    -> Γ ⊢ `impure `1
-    -> Γ ⊢ φ
+    [ `impure ] Γ ⊢ `1
+    -> [ ζ ] Γ ⊢ σ
     -----------------
-    -> Γ ⊢ `impure σ
+    -> [ `impure ] Γ ⊢ σ
 
   `while_`do_ :
-    Γ ⊢ `pure `N
-    -> Γ ⊢ `impure `1
+    [ `pure ] Γ ⊢ `N
+    -> [ `impure ] Γ ⊢ `1
     ------------------
-    -> Γ ⊢ `impure `1
+    -> [ `impure ] Γ ⊢ `1
 
-  `done :
+  `done : -- aka skip
     --------------
-    Γ ⊢ `impure `1
+    [ `impure ] Γ ⊢ `1 -- should I provide one pure ?
