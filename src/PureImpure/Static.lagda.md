@@ -199,7 +199,7 @@ The while loop takes a pure expression evaluating to a natural number
 as condition and one or several assignation.
 
 ```agda
-`while_`do_ :
+  `while_`do_ :
     [ `pure ] Γ ⊢ `N
     -> [ `impure ] Γ ⊢ `1
     ------------------

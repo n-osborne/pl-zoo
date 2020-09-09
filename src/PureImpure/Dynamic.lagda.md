@@ -1,3 +1,4 @@
+```agda
 module PureImpure.Dynamic where
 
 open import PureImpure.Static
@@ -168,3 +169,4 @@ data _⟶_ : ∀ {Σ : Store Γ}{Σ' : Store Δ}{T : [ ζ ] Γ ⊢ τ}{T' : [ ξ
        ∀ {Σ : Store Γ}{db : Γ ∋ `N}
        ----------------------------------------------------
        -> ⟨ Σ × `! db ⟩ ⟶ ⟨ Σ × contextualize (db ! Σ) Γ ⟩
+```
