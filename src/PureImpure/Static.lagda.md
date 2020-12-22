@@ -14,7 +14,7 @@ infix 10 _,_
 infix  9 _∋_
 infix  8 `!_
 infix  7 _`→_ `λ_
-infix  5 [_]_⊢_ _`$_ _`$$_
+infix  5 [_]_⊢_ _`$_ _`$!_
 ```
 
 As a matter of type in the object language, we just need a type with
@@ -104,7 +104,7 @@ of the branches (which need to be the same).
 ```
 
 We also define a conditional expression with the same caracteristic
-wrt the status.
+*wrt* the status.
 
 ```agda
   `if_`then_`else_ :
@@ -116,7 +116,8 @@ wrt the status.
 ```
 
 We define function by lambda abstraction.
-A lambda abstraction is pure because it is a value (normal form).
+A lambda abstraction is pure because it is a value (normal form),
+even if its body can be impure.
 
 ```agda
   `λ_ :
@@ -142,7 +143,7 @@ the callee's environment (the named function is a closure and come with its
 own environment in which will happen the possible side effects).
 
 ```agda
-  _`$$_ :
+  _`$!_ :
     Γ ∋ (τ `→ σ)
     -> [ `pure ] Γ ⊢ τ
     --------------
@@ -207,26 +208,11 @@ as condition and one or several assignation.
 
 ```
 
-So, we will need to put a stop to a sequence of assignation.
+So, we will need to put a stop to a sequence of assignations.
 
 ```agda
   `done : -- aka skip
     --------------
     [ `impure ] Γ ⊢ `1 -- should I provide one pure ?
-
-```
-
-This last one is problematic.
-
-seems to be needed to assign the result of a function call to a var
-but raises problems
-it is now possible to write : `let (`ret (impure expr)) `in T
-
-```agda
-  `ret :
-    [ ζ ] Γ ⊢ τ
-    ----------------
-    -> [ `pure ] Γ ⊢ τ
-
 
 ```
