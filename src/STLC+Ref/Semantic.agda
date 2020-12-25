@@ -120,7 +120,16 @@ data NormalForm : Γ ⊢ τ -> Set where
     -> NormalForm (`S n)
     
   `λ-nf :
-    ∀ {T : Γ , σ ⊢ τ}
+    ∀ (T : Γ , σ ⊢ τ)
     --------------------
     -> NormalForm (`λ T)
+
+nf-to-value : ∀ {T : Γ ⊢ τ} -> Env Σ Γ -> NormalForm T -> Val Σ τ
+nf-to-value _   `Z-nf      = `Z-val
+nf-to-value env (`S-nf nf) = `S-val (nf-to-value env nf)
+nf-to-value env (`λ-nf T)  = `λ⟨ T , env ⟩
+
+value-to-`N : Val Σ `N -> Σ ⊢ `N
+value-to-`N `Z-val     = `Z
+value-to-`N (`S-val v) = `S (value-to-`N v)
 
