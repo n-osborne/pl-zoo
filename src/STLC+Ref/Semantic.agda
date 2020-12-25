@@ -107,4 +107,20 @@ mutual
 store : ∀ {τ} -> Val Σ τ -> Store Σ -> Store (Σ , τ)
 store {Σ}{τ} v st = lift-env τ st , lift-val τ v
 
+data NormalForm : Γ ⊢ τ -> Set where
+
+  `Z-nf :
+    -----------------
+    NormalForm {Γ} `Z
+    
+  `S-nf :
+    ∀ {n : Γ ⊢ `N}
+    -> NormalForm n
+    --------------------
+    -> NormalForm (`S n)
+    
+  `λ-nf :
+    ∀ {T : Γ , σ ⊢ τ}
+    --------------------
+    -> NormalForm (`λ T)
 
