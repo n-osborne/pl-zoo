@@ -74,3 +74,37 @@ data _⊢_ : Ctx -> Ty -> Set where
     -> Γ ⊢ τ
     ---------
     -> Γ ⊢ τ
+
+StoreTy = Ctx
+
+private
+  variable
+    Σ Σ' : StoreTy
+    
+mutual
+
+  data Val : StoreTy -> Ty -> Set where
+     `Z-val  : Val Σ `N
+     `S-val  : Val Σ `N -> Val Σ `N
+     `λ⟨_,_⟩ : Γ , σ ⊢ τ -> Env Σ Γ -> Val Σ (σ `→ τ)
+
+  Env : StoreTy -> Ctx -> Set
+  Env Σ Γ = All (λ τ -> Val Σ τ) Γ
+
+Store : StoreTy -> Set
+Store Σ = Env Σ Σ
+
+mutual
+  lift-val : (σ : Ty) -> Val Σ τ -> Val (Σ , σ) τ
+  lift-val σ `Z-val      = `Z-val
+  lift-val σ (`S-val v)  = `S-val (lift-val σ v)
+  lift-val σ `λ⟨ T , E ⟩ = `λ⟨ T , lift-env σ E ⟩
+
+  lift-env : (σ : Ty) -> Env Σ Γ -> Env (Σ , σ) Γ
+  lift-env σ CtxM.∅         = ∅
+  lift-env σ (env CtxM., v) = lift-env σ env , lift-val σ v
+
+store : ∀ {τ} -> Val Σ τ -> Store Σ -> Store (Σ , τ)
+store {Σ}{τ} v st = lift-env τ st , lift-val τ v
+
+
