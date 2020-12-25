@@ -1,4 +1,4 @@
-module STLCRef.Semantic where
+module STLC+Ref.Semantic where
 
 import Utils.Ctx as CtxM
 
